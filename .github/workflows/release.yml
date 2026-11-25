@@ -1,0 +1,105 @@
+# On a tag such as v1.2.3: tests, builds binaries into a GitHub release, and
+# pushes an image to ghcr.io/<owner of this repository>/curt.
+name: CLI release
+
+on:
+  push:
+    tags: ['v[0-9]*']
+
+permissions: {}
+
+concurrency:
+  group: cli-release-${{ github.ref }}
+
+defaults:
+  run:
+    shell: bash
+    working-directory: cli
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
+        with:
+          go-version-file: cli/go.mod
+          cache: false
+      - run: go vet ./...
+      - run: go test -race ./...
+
+  binaries:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      TAG: ${{ github.ref_name }}
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
+        with:
+          go-version-file: cli/go.mod
+          cache: false
+      - name: Build
+        run: |
+          set -euo pipefail
+          mkdir dist
+          for target in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64; do
+            os="${target%/*}" arch="${target#*/}"
+            dir="$(mktemp -d)"
+            CGO_ENABLED=0 GOOS="$os" GOARCH="$arch" go build -trimpath \
+              -ldflags "-s -w -X main.version=$TAG" -o "$dir/curt" .
+            cp ../LICENSE README.md "$dir/"
+            tar -C "$dir" -czf "dist/curt_${TAG}_${os}_${arch}.tar.gz" curt LICENSE README.md
+          done
+          cd dist && sha256sum ./*.tar.gz > checksums.txt
+      - name: Upload to the release
+        run: |
+          set -euo pipefail
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            pre=()
+            case "$TAG" in *-*) pre=(--prerelease) ;; esac
+            gh release create "$TAG" --verify-tag --generate-notes "${pre[@]}"
+          fi
+          gh release upload "$TAG" dist/* --clobber
+
+  image:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      TAG: ${{ github.ref_name }}
+      OWNER: ${{ github.repository_owner }}
+      REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+      ACTOR: ${{ github.actor }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build and push
+        run: |
+          set -euo pipefail
+          image="ghcr.io/${OWNER,,}/curt" # GHCR names are lowercase
+          tags=(--tag "$image:${TAG#v}")
+          case "$TAG" in *-*) ;; *) tags+=(--tag "$image:latest") ;; esac
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io --username "$ACTOR" --password-stdin
+          docker buildx create --use
+          docker buildx build --push --platform linux/amd64,linux/arm64 \
+            --build-arg "VERSION=$TAG" \
+            --label "org.opencontainers.image.source=$REPO_URL" \
+            --label "org.opencontainers.image.version=${TAG#v}" \
+            --label "org.opencontainers.image.licenses=MIT" \
+            "${tags[@]}" .
+          docker logout ghcr.io

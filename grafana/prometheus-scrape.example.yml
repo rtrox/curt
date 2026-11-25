@@ -1,0 +1,15 @@
+# Example only. Not verified against a live Prometheus.
+# Retention is a Prometheus flag, not a scrape setting: --storage.tsdb.retention.time=5y
+scrape_configs:
+  - job_name: curt
+    scheme: https
+    metrics_path: /metrics
+    # Two Analytics Engine queries per scrape: 1,440 a day.
+    scrape_interval: 2m
+    scrape_timeout: 30s
+    authorization:
+      type: Bearer
+      # One line: an API token with the metrics:read scope. Readable only by Prometheus.
+      credentials_file: /etc/prometheus/secrets/curt-metrics-token
+    static_configs:
+      - targets: [app.go.example]

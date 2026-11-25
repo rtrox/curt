@@ -1,0 +1,1011 @@
+{
+  "title": "curt",
+  "uid": "curt-clicks",
+  "description": "Clicks for curt. Detail comes from Analytics Engine and goes back three months. Older history comes from Prometheus. Panels and queries have NOT been verified against live services.",
+  "tags": [
+    "curt"
+  ],
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "graphTooltip": 1,
+  "timezone": "utc",
+  "refresh": "5m",
+  "time": {
+    "from": "now-7d",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "5m",
+      "15m",
+      "30m",
+      "1h"
+    ]
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "ae",
+        "label": "Analytics Engine",
+        "type": "datasource",
+        "query": "vertamedia-clickhouse-datasource",
+        "current": {},
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "refresh": 1,
+        "regex": "",
+        "options": []
+      },
+      {
+        "name": "prom",
+        "label": "Prometheus",
+        "type": "datasource",
+        "query": "prometheus",
+        "current": {},
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "refresh": 1,
+        "regex": "",
+        "options": []
+      }
+    ]
+  },
+  "annotations": {
+    "list": []
+  },
+  "links": [],
+  "panels": [
+    {
+      "id": 1,
+      "type": "gauge",
+      "title": "Requests recorded today against the free limit",
+      "description": "All recorded redirect requests since midnight UTC, bots and errors included, whatever time range is selected. Free limit: 100,000 a day, shared by every Worker on the account. Dashboard and API requests are not counted here. Not verified against live services.",
+      "datasource": {
+        "type": "vertamedia-clickhouse-datasource",
+        "uid": "${ae}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "vertamedia-clickhouse-datasource",
+            "uid": "${ae}"
+          },
+          "query": "SELECT SUM(_sample_interval * double1) AS requests FROM curt_clicks WHERE timestamp >= toStartOfInterval(now(), INTERVAL '1' DAY)",
+          "rawQuery": "SELECT SUM(_sample_interval * double1) AS requests FROM curt_clicks WHERE timestamp >= toStartOfInterval(now(), INTERVAL '1' DAY)",
+          "format": "table",
+          "editorMode": "sql",
+          "datasourceMode": "Datasource",
+          "dateTimeType": "DATETIME",
+          "dateTimeColDataType": "timestamp",
+          "table": "curt_clicks",
+          "round": "0s",
+          "intervalFactor": 1,
+          "interval": "5m",
+          "extrapolate": false,
+          "skip_comments": true,
+          "adHocFilters": []
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "min": 0,
+          "max": 100000,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 70000
+              },
+              {
+                "color": "red",
+                "value": 100000
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      }
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Clicks over time",
+      "description": "Successful redirects by people, per domain. Bots are left out. Not verified against live services.",
+      "datasource": {
+        "type": "vertamedia-clickhouse-datasource",
+        "uid": "${ae}"
+      },
+      "gridPos": {
+        "x": 6,
+        "y": 0,
+        "w": 18,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "vertamedia-clickhouse-datasource",
+            "uid": "${ae}"
+          },
+          "query": "SELECT intDiv(toUInt32(timestamp), $interval) * $interval * 1000 AS t, blob1 AS domain, SUM(_sample_interval * double1) AS clicks FROM curt_clicks WHERE timestamp >= toDateTime($from) AND timestamp <= toDateTime($to) AND blob3 = 'ok' AND blob7 = '0' GROUP BY t, domain ORDER BY t",
+          "rawQuery": "SELECT intDiv(toUInt32(timestamp), $interval) * $interval * 1000 AS t, blob1 AS domain, SUM(_sample_interval * double1) AS clicks FROM curt_clicks WHERE timestamp >= toDateTime($from) AND timestamp <= toDateTime($to) AND blob3 = 'ok' AND blob7 = '0' GROUP BY t, domain ORDER BY t",
+          "format": "time_series",
+          "editorMode": "sql",
+          "datasourceMode": "Datasource",
+          "dateTimeType": "DATETIME",
+          "dateTimeColDataType": "timestamp",
+          "table": "curt_clicks",
+          "round": "0s",
+          "intervalFactor": 1,
+          "interval": "5m",
+          "extrapolate": false,
+          "skip_comments": true,
+          "adHocFilters": []
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic-by-name"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "axisSoftMin": 0,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "sum"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "type": "barchart",
+      "title": "Top links",
+      "description": "Most clicked links, people only. A deleted and recreated slug counts as one row here. Not verified against live services.",
+      "datasource": {
+        "type": "vertamedia-clickhouse-datasource",
+        "uid": "${ae}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 12,
+        "h": 9
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "vertamedia-clickhouse-datasource",
+            "uid": "${ae}"
+          },
+          "query": "SELECT format('{}/{}', blob1, blob2) AS link, SUM(_sample_interval * double1) AS clicks FROM curt_clicks WHERE timestamp >= toDateTime($from) AND timestamp <= toDateTime($to) AND blob3 = 'ok' AND blob7 = '0' GROUP BY link ORDER BY clicks DESC LIMIT 10",
+          "rawQuery": "SELECT format('{}/{}', blob1, blob2) AS link, SUM(_sample_interval * double1) AS clicks FROM curt_clicks WHERE timestamp >= toDateTime($from) AND timestamp <= toDateTime($to) AND blob3 = 'ok' AND blob7 = '0' GROUP BY link ORDER BY clicks DESC LIMIT 10",
+          "format": "table",
+          "editorMode": "sql",
+          "datasourceMode": "Datasource",
+          "dateTimeType": "DATETIME",
+          "dateTimeColDataType": "timestamp",
+          "table": "curt_clicks",
+          "round": "0s",
+          "intervalFactor": 1,
+          "interval": "5m",
+          "extrapolate": false,
+          "skip_comments": true,
+          "adHocFilters": []
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#3987e5"
+          },
+          "custom": {
+            "lineWidth": 0,
+            "fillOpacity": 85
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "xField": "link",
+        "barWidth": 0.6,
+        "showValue": "auto",
+        "legend": {
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "type": "barchart",
+      "title": "Referrers",
+      "description": "Referring domain, people only. Not verified against live services.",
+      "datasource": {
+        "type": "vertamedia-clickhouse-datasource",
+        "uid": "${ae}"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 8,
+        "w": 12,
+        "h": 9
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "vertamedia-clickhouse-datasource",
+            "uid": "${ae}"
+          },
+          "query": "SELECT if(blob4 = '', '(none)', blob4) AS referrer, SUM(_sample_interval * double1) AS clicks FROM curt_clicks WHERE timestamp >= toDateTime($from) AND timestamp <= toDateTime($to) AND blob3 = 'ok' AND blob7 = '0' GROUP BY referrer ORDER BY clicks DESC LIMIT 10",
+          "rawQuery": "SELECT if(blob4 = '', '(none)', blob4) AS referrer, SUM(_sample_interval * double1) AS clicks FROM curt_clicks WHERE timestamp >= toDateTime($from) AND timestamp <= toDateTime($to) AND blob3 = 'ok' AND blob7 = '0' GROUP BY referrer ORDER BY clicks DESC LIMIT 10",
+          "format": "table",
+          "editorMode": "sql",
+          "datasourceMode": "Datasource",
+          "dateTimeType": "DATETIME",
+          "dateTimeColDataType": "timestamp",
+          "table": "curt_clicks",
+          "round": "0s",
+          "intervalFactor": 1,
+          "interval": "5m",
+          "extrapolate": false,
+          "skip_comments": true,
+          "adHocFilters": []
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#3987e5"
+          },
+          "custom": {
+            "lineWidth": 0,
+            "fillOpacity": 85
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "xField": "referrer",
+        "barWidth": 0.6,
+        "showValue": "auto",
+        "legend": {
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "type": "barchart",
+      "title": "Countries",
+      "description": "Country, people only. Not verified against live services.",
+      "datasource": {
+        "type": "vertamedia-clickhouse-datasource",
+        "uid": "${ae}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 17,
+        "w": 8,
+        "h": 9
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "vertamedia-clickhouse-datasource",
+            "uid": "${ae}"
+          },
+          "query": "SELECT if(blob5 = '', '(unknown)', blob5) AS country, SUM(_sample_interval * double1) AS clicks FROM curt_clicks WHERE timestamp >= toDateTime($from) AND timestamp <= toDateTime($to) AND blob3 = 'ok' AND blob7 = '0' GROUP BY country ORDER BY clicks DESC LIMIT 10",
+          "rawQuery": "SELECT if(blob5 = '', '(unknown)', blob5) AS country, SUM(_sample_interval * double1) AS clicks FROM curt_clicks WHERE timestamp >= toDateTime($from) AND timestamp <= toDateTime($to) AND blob3 = 'ok' AND blob7 = '0' GROUP BY country ORDER BY clicks DESC LIMIT 10",
+          "format": "table",
+          "editorMode": "sql",
+          "datasourceMode": "Datasource",
+          "dateTimeType": "DATETIME",
+          "dateTimeColDataType": "timestamp",
+          "table": "curt_clicks",
+          "round": "0s",
+          "intervalFactor": 1,
+          "interval": "5m",
+          "extrapolate": false,
+          "skip_comments": true,
+          "adHocFilters": []
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#3987e5"
+          },
+          "custom": {
+            "lineWidth": 0,
+            "fillOpacity": 85
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "xField": "country",
+        "barWidth": 0.6,
+        "showValue": "auto",
+        "legend": {
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 6,
+      "type": "barchart",
+      "title": "Devices",
+      "description": "Device type, people only. Not verified against live services.",
+      "datasource": {
+        "type": "vertamedia-clickhouse-datasource",
+        "uid": "${ae}"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 17,
+        "w": 8,
+        "h": 9
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "vertamedia-clickhouse-datasource",
+            "uid": "${ae}"
+          },
+          "query": "SELECT if(blob6 = '', '(unknown)', blob6) AS device, SUM(_sample_interval * double1) AS clicks FROM curt_clicks WHERE timestamp >= toDateTime($from) AND timestamp <= toDateTime($to) AND blob3 = 'ok' AND blob7 = '0' GROUP BY device ORDER BY clicks DESC LIMIT 10",
+          "rawQuery": "SELECT if(blob6 = '', '(unknown)', blob6) AS device, SUM(_sample_interval * double1) AS clicks FROM curt_clicks WHERE timestamp >= toDateTime($from) AND timestamp <= toDateTime($to) AND blob3 = 'ok' AND blob7 = '0' GROUP BY device ORDER BY clicks DESC LIMIT 10",
+          "format": "table",
+          "editorMode": "sql",
+          "datasourceMode": "Datasource",
+          "dateTimeType": "DATETIME",
+          "dateTimeColDataType": "timestamp",
+          "table": "curt_clicks",
+          "round": "0s",
+          "intervalFactor": 1,
+          "interval": "5m",
+          "extrapolate": false,
+          "skip_comments": true,
+          "adHocFilters": []
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#3987e5"
+          },
+          "custom": {
+            "lineWidth": 0,
+            "fillOpacity": 85
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "xField": "device",
+        "barWidth": 0.6,
+        "showValue": "auto",
+        "legend": {
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Bots and people",
+      "description": "Successful redirects, split by the bot flag. Not verified against live services.",
+      "datasource": {
+        "type": "vertamedia-clickhouse-datasource",
+        "uid": "${ae}"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 17,
+        "w": 8,
+        "h": 9
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "vertamedia-clickhouse-datasource",
+            "uid": "${ae}"
+          },
+          "query": "SELECT intDiv(toUInt32(timestamp), $interval) * $interval * 1000 AS t, if(blob7 = '1', 'Bots', 'People') AS visitor, SUM(_sample_interval * double1) AS clicks FROM curt_clicks WHERE timestamp >= toDateTime($from) AND timestamp <= toDateTime($to) AND blob3 = 'ok' GROUP BY t, visitor ORDER BY t",
+          "rawQuery": "SELECT intDiv(toUInt32(timestamp), $interval) * $interval * 1000 AS t, if(blob7 = '1', 'Bots', 'People') AS visitor, SUM(_sample_interval * double1) AS clicks FROM curt_clicks WHERE timestamp >= toDateTime($from) AND timestamp <= toDateTime($to) AND blob3 = 'ok' GROUP BY t, visitor ORDER BY t",
+          "format": "time_series",
+          "editorMode": "sql",
+          "datasourceMode": "Datasource",
+          "dateTimeType": "DATETIME",
+          "dateTimeColDataType": "timestamp",
+          "table": "curt_clicks",
+          "round": "0s",
+          "intervalFactor": 1,
+          "interval": "5m",
+          "extrapolate": false,
+          "skip_comments": true,
+          "adHocFilters": []
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic-by-name"
+          },
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 2,
+            "fillOpacity": 70,
+            "showPoints": "never",
+            "axisSoftMin": 0,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "/People/"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#3987e5"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "/Bots/"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#d95926"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "sum"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Outcomes",
+      "description": "Every recorded request by result, bots included. Not verified against live services.",
+      "datasource": {
+        "type": "vertamedia-clickhouse-datasource",
+        "uid": "${ae}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 26,
+        "w": 24,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "vertamedia-clickhouse-datasource",
+            "uid": "${ae}"
+          },
+          "query": "SELECT intDiv(toUInt32(timestamp), $interval) * $interval * 1000 AS t, blob3 AS outcome, SUM(_sample_interval * double1) AS requests FROM curt_clicks WHERE timestamp >= toDateTime($from) AND timestamp <= toDateTime($to) GROUP BY t, outcome ORDER BY t",
+          "rawQuery": "SELECT intDiv(toUInt32(timestamp), $interval) * $interval * 1000 AS t, blob3 AS outcome, SUM(_sample_interval * double1) AS requests FROM curt_clicks WHERE timestamp >= toDateTime($from) AND timestamp <= toDateTime($to) GROUP BY t, outcome ORDER BY t",
+          "format": "time_series",
+          "editorMode": "sql",
+          "datasourceMode": "Datasource",
+          "dateTimeType": "DATETIME",
+          "dateTimeColDataType": "timestamp",
+          "table": "curt_clicks",
+          "round": "0s",
+          "intervalFactor": 1,
+          "interval": "5m",
+          "extrapolate": false,
+          "skip_comments": true,
+          "adHocFilters": []
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic-by-name"
+          },
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 2,
+            "fillOpacity": 70,
+            "showPoints": "never",
+            "axisSoftMin": 0,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "/ok/"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#3987e5"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "/not_found/"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#d95926"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "/root/"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#199e70"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "/expired/"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#c98500"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "/disabled/"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#9085e9"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "sum"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Clicks per day, long range",
+      "description": "Read from Prometheus, so it reaches back as far as Prometheus retention. People only, successful redirects, rolling 24 hours at each point. Not verified against live services.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prom}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 34,
+        "w": 16,
+        "h": 9
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prom}"
+          },
+          "expr": "sum by (domain) (increase(curt_clicks_total{outcome=\"ok\",bot=\"0\"}[1d]))",
+          "legendFormat": "{{domain}}",
+          "instant": false,
+          "range": true,
+          "format": "time_series",
+          "interval": "1d"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic-by-name"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "axisSoftMin": 0,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "sum"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 10,
+      "type": "stat",
+      "title": "Prometheus values are estimates",
+      "description": "1 means Analytics Engine sampled some of the data behind the current values. increase() can then overcount. Not verified against live services.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prom}"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 34,
+        "w": 4,
+        "h": 9
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prom}"
+          },
+          "expr": "max(curt_metrics_sampled)",
+          "legendFormat": "sampled",
+          "instant": true,
+          "range": false,
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "No",
+                  "index": 0
+                },
+                "1": {
+                  "text": "Yes, estimated",
+                  "index": 1
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 11,
+      "type": "stat",
+      "title": "Links left out by the cap",
+      "description": "Clicked links this month with no series of their own. Domain totals still include them. Not verified against live services.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prom}"
+      },
+      "gridPos": {
+        "x": 20,
+        "y": 34,
+        "w": 4,
+        "h": 9
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prom}"
+          },
+          "expr": "max(curt_links_omitted)",
+          "legendFormat": "omitted",
+          "instant": true,
+          "range": false,
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "text"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 12,
+      "type": "barchart",
+      "title": "Top links, long range",
+      "description": "Read from Prometheus, so it reaches back as far as Prometheus retention. People only, over the selected range, limited to links that had their own series. Not verified against live services.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prom}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 43,
+        "w": 24,
+        "h": 9
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prom}"
+          },
+          "expr": "topk(10, sum by (link) (label_join(increase(curt_link_clicks_total{bot=\"0\"}[$__range]), \"link\", \"/\", \"domain\", \"slug\")))",
+          "legendFormat": "{{link}}",
+          "instant": true,
+          "range": false,
+          "format": "table"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#3987e5"
+          },
+          "custom": {
+            "lineWidth": 0,
+            "fillOpacity": 85
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "xField": "link",
+        "barWidth": 0.6,
+        "showValue": "auto",
+        "legend": {
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "renameByName": {
+              "Value": "clicks"
+            }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "sort": [
+              {
+                "field": "clicks",
+                "desc": true
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

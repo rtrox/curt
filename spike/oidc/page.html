@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Sign-in spike</title>
+<style>body{font:16px/1.5 system-ui,sans-serif;max-width:640px;margin:48px auto;padding:0 16px}button{font:inherit;padding:10px 20px}li.pass::marker{content:"PASS  "}li.fail::marker{content:"FAIL  "}li.info::marker{content:"info  "}ul{padding-left:64px}</style></head>
+<body><h1>Sign-in spike</h1><button id="go" type="button">Sign in</button><ul id="log"></ul>
+<script>
+const cfg = __CONFIG__;
+const kept = [];
+const log = (kind, text) => { kept.push([kind, text]); const li = document.createElement('li'); li.className = kind; li.textContent = text; document.getElementById('log').append(li); };
+const b64 = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const rand = () => b64(crypto.getRandomValues(new Uint8Array(32)));
+const redirect = location.origin + '/callback';
+async function discover() {
+  const r = await fetch(cfg.issuer + '/.well-known/openid-configuration');
+  const d = await r.json();
+  log('pass', 'Browser read the discovery document');
+  log(d.issuer === cfg.issuer ? 'pass' : 'fail', 'Issuer matches');
+  const same = new URL(d.token_endpoint).origin === new URL(cfg.issuer).origin;
+  log(same ? 'pass' : 'fail', 'Token endpoint is on the issuer host');
+  return d;
+}
+document.getElementById('go').onclick = async () => {
+  try {
+    const d = await discover();
+    const { nonce } = await (await fetch('/auth/begin', { method: 'POST' })).json();
+    const verifier = rand(), state = rand();
+    sessionStorage.setItem('pkce', JSON.stringify({ verifier, state, token: d.token_endpoint, kept }));
+    const challenge = b64(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier)));
+    location.href = d.authorization_endpoint + '?' + new URLSearchParams({ response_type: 'code', client_id: cfg.clientId, redirect_uri: redirect, scope: 'openid profile email groups', state, nonce, code_challenge: challenge, code_challenge_method: 'S256' });
+  } catch (e) { log('fail', 'Could not start: ' + e.message); }
+};
+(async () => {
+  if (location.pathname !== '/callback') return;
+  const q = new URLSearchParams(location.search), saved = JSON.parse(sessionStorage.getItem('pkce') || 'null');
+  sessionStorage.removeItem('pkce'); history.replaceState(null, '', '/callback');
+  for (const [k, t] of saved?.kept ?? []) log(k, t);
+  if (q.get('error')) return log('fail', 'Provider returned: ' + q.get('error'));
+  if (!saved || q.get('state') !== saved.state) return log('fail', 'State did not match');
+  log('pass', 'Provider redirected back with a matching state');
+  try {
+    const r = await fetch(saved.token, { method: 'POST', body: new URLSearchParams({ grant_type: 'authorization_code', code: q.get('code'), redirect_uri: redirect, client_id: cfg.clientId, code_verifier: saved.verifier }) });
+    const t = await r.json();
+    if (!r.ok || !t.id_token) return log('fail', 'Token exchange: HTTP ' + r.status + ' ' + (t.error || ''));
+    log('pass', 'Browser exchanged the code (CORS allowed it)');
+    const s = await fetch('/auth/session', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id_token: t.id_token }) });
+    const v = await s.json();
+    if (!s.ok) return log('fail', 'Server rejected the token: ' + v.error);
+    log('pass', 'Server verified the token against pinned keys');
+    log(v.tamperedRejected ? 'pass' : 'fail', 'Server rejects a changed token');
+    log(v.groupsInIdToken ? 'pass' : 'fail', 'groups claim is in the ID token (' + v.groupCount + ')');
+    log('info', 'Claim names: ' + v.claims.join(', '));
+  } catch (e) { log('fail', 'Exchange blocked or unreachable: ' + e.message); }
+})();
+</script></body></html>

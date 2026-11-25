@@ -1,0 +1,13 @@
+{
+  "name": "curt-redirect",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-01",
+  "workers_dev": false,
+  "send_metrics": false,
+  // Invocation logs hold request headers and URLs, including visitor addresses.
+  "observability": { "enabled": true, "logs": { "enabled": true, "invocation_logs": false } },
+  "kv_namespaces": [{ "binding": "LINKS", "id": "REPLACE_KV_ID" }],
+  "d1_databases": [{ "binding": "DB", "database_name": "curt", "database_id": "REPLACE_D1_ID", "migrations_dir": "../../migrations" }],
+  "analytics_engine_datasets": [{ "binding": "CLICKS", "dataset": "curt_clicks" }],
+  "vars": { "DOMAINS": "[{\"host\":\"go.example\",\"root\":\"https://example.com\"}]", "VISITOR_MODE": "hash" }
+}

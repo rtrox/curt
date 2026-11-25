@@ -1,0 +1,31 @@
+{
+  "name": "curt-admin",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-01",
+  "workers_dev": false,
+  "send_metrics": false,
+  // Invocation logs hold request headers and URLs, including visitor addresses.
+  "observability": { "enabled": true, "logs": { "enabled": true, "invocation_logs": false } },
+  // HTML goes through the Worker so it carries a per-deployment Content-Security-Policy.
+  "assets": { "directory": "../../web/dist", "binding": "ASSETS", "run_worker_first": ["/*", "!/assets/*"] },
+  "kv_namespaces": [{ "binding": "LINKS", "id": "REPLACE_KV_ID" }],
+  "d1_databases": [{ "binding": "DB", "database_name": "curt", "database_id": "REPLACE_D1_ID", "migrations_dir": "../../migrations" }],
+  "triggers": { "crons": ["7 * * * *"] },
+  "vars": {
+    "DOMAINS": "[{\"host\":\"go.example\",\"root\":\"https://example.com\"}]",
+    "ADMIN_HOST": "app.go.example",
+    "SITE_NAME": "Links",
+    "ACCENT": "",
+    "OIDC_ISSUER": "https://id.example",
+    "OIDC_CLIENT_ID": "curt",
+    "OIDC_AUTHORIZATION_ENDPOINT": "https://id.example/authorize",
+    "OIDC_TOKEN_ENDPOINT": "https://id.example/api/oidc/token",
+    "OIDC_EXCHANGE": "browser",
+    "OIDC_JWKS": "{\"keys\":[]}",
+    "ALLOWED_GROUP": "links",
+    "ADMIN_GROUP": "links-admin",
+    "METRICS_MAX_LINKS": "1000",
+    "ACCOUNT_ID": "REPLACE_ACCOUNT_ID"
+  }
+  // Secrets: COOKIE_KEY, AE_TOKEN, and optionally OIDC_CLIENT_SECRET
+}

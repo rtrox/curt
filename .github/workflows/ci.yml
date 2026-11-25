@@ -1,0 +1,36 @@
+name: ci
+on:
+  push: { branches: [main] }
+  pull_request:
+permissions: { contents: read }
+jobs:
+  typescript:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with: { node-version: 24, cache: npm }
+      - run: npm ci
+      - run: npm run build
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm audit --audit-level=high
+  go:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: cli } }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
+        with: { go-version-file: cli/go.mod, cache-dependency-path: cli/go.sum }
+      - run: go vet ./...
+      - run: go test -race ./...
+  private-names:
+    # Fails if a name from the PRIVATE_NAMES secret (one per line) appears in the repository.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - env: { PRIVATE_NAMES: "${{ secrets.PRIVATE_NAMES }}" }
+        run: |
+          printf '%s\n' "$PRIVATE_NAMES" | sed '/^[[:space:]]*$/d' > "$RUNNER_TEMP/names"
+          if [ ! -s "$RUNNER_TEMP/names" ]; then echo "::warning::PRIVATE_NAMES is not available here, so nothing was checked"; exit 0; fi
+          sh scripts/check-private-names.sh "$RUNNER_TEMP/names"

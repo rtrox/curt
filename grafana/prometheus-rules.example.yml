@@ -1,0 +1,24 @@
+# Example only. Not verified against a live Prometheus.
+groups:
+  - name: curt
+    rules:
+      # Every outcome, bots included, because all of them use up the daily limit.
+      # This looks at the last 24 hours. The limit itself resets at midnight UTC.
+      - alert: CurtDailyRequestsHigh
+        expr: sum(increase(curt_clicks_total[24h])) > 0.7 * 100000
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: curt recorded more than 70% of the 100,000 free requests in 24 hours.
+          description: >-
+            {{ $value | humanize }} requests in 24 hours. Dashboard, API and other Workers on the
+            account also count towards the limit but are not included here. If
+            curt_metrics_sampled is 1, this number is an estimate and may be too high.
+      - alert: CurtMetricsSampled
+        expr: max(curt_metrics_sampled) == 1
+        for: 10m
+        labels:
+          severity: info
+        annotations:
+          summary: curt click counts are estimates, because Analytics Engine sampled the data.
